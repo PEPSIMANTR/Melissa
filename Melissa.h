@@ -45,39 +45,41 @@ static inline void HeaderParametersReset(struct HeaderParameters* h) {
 
 typedef struct Vector;
 struct Vector {
-	unsigned char* Data;
-	int CurrentSize; size_t MaxSize; unsigned int ElementSz;
+	unsigned char* Data; // Actual data
+	unsigned char* Occupied; // Array for indicating which offsets are allocated with data or unused, 0xFF if used.
+	int CurrentSize; int MaxSize; unsigned int ElementSz;
 };
 struct Vector VectorDefault = {
-	.Data = 0, .CurrentSize = 0, .MaxSize = 0, .ElementSz = 0
+	.Data = 0, .Occupied=0, .CurrentSize = 0, .MaxSize = 0, .ElementSz = 0
 };
 static inline void InitializeVector(struct Vector* Vec, int ElementSz) {
-	Vec->ElementSz = ElementSz; Vec->Data = malloc(ElementSz + 1); Vec->Data[0] = 0; Vec->MaxSize = ElementSz + 1; return;
+	Vec->ElementSz = ElementSz; Vec->Data = malloc(ElementSz); 
+	Vec->Occupied = malloc(1); Vec->Occupied[0] = 0;
+	Vec->MaxSize = 1; return;
 }
 static inline void* AddElement(struct Vector* Vec, void* Element, int ElementSz) {
 	if (ElementSz != Vec->ElementSz) abort(); //throw("AddElement(): Added element is not equal to vector element size.\n");
 	// Search for an empty space first and reuse it
 	size_t off = 0;
-	for (; off < Vec->MaxSize; off+=ElementSz+1) {
-		if (Vec->Data[off] != 0xFF) {// Assisgned spaces will have 0xFF byte at first byte
-			Vec->Data[off] = 0xFF;
-			memcpy(&Vec->Data[off + 1], Element, ElementSz);
-			Vec->CurrentSize++; return Vec->Data[off + 1];
+	for (; off < Vec->MaxSize; off++) {
+		if (Vec->Occupied[off] != 0xFF) {// If this offset is unused(free)
+			memcpy(&Vec->Data[off * Vec->ElementSz], Element, ElementSz);
+			Vec->CurrentSize++;  Vec->Occupied[off] = 0xFF;
+			return &Vec->Data[off * Vec->ElementSz];
 		}
 	}
 	// If not found, extend the vector and add to end.
-	Vec->Data=realloc(Vec->Data, Vec->MaxSize + ElementSz + 1);
-	if (!Vec->Data) abort();
-	Vec->Data[Vec->MaxSize] = 0xFF;
-	memcpy(&Vec->Data[Vec->MaxSize + 1], Element, ElementSz);
-	Vec->MaxSize += ElementSz + 1; Vec->CurrentSize++; return Vec->MaxSize-ElementSz;
+	Vec->Data = realloc(Vec->Data, (Vec->MaxSize + 1) * ElementSz);  Vec->Occupied = realloc(Vec->Occupied, Vec->MaxSize + 1);
+	if (!Vec->Data || !Vec->Occupied) abort();
+	memcpy(&Vec->Data[(Vec->MaxSize)*ElementSz], Element, ElementSz); Vec->Occupied[Vec->MaxSize] = 0xFF;
+	Vec->MaxSize++; Vec->CurrentSize++; return &Vec->Data[Vec->MaxSize-ElementSz];
 }
 static inline void* GetElement(struct Vector* Vec, int Offset) {
 	if (Offset > Vec->CurrentSize) abort(); //throw("GetElement(): Offset is bigger than current element count.\n");
-	for (size_t i = 0; i < Vec->MaxSize; i+=Vec->ElementSz+1) {
-		if (Vec->Data[i] == 0xFF) {
+	for (size_t i = 0; i < Vec->MaxSize; i++) {
+		if (Vec->Occupied[i] == 0xFF) {
 			if (!Offset) {
-				return &Vec->Data[i + 1];
+				return &Vec->Data[i*Vec->ElementSz];
 			}
 			Offset--;
 		}
@@ -85,10 +87,10 @@ static inline void* GetElement(struct Vector* Vec, int Offset) {
 }
 static inline void DeleteElement(struct Vector* Vec, int Offset) {
 	if (Offset > Vec->CurrentSize) abort(); //throw("GetElement(): Offset is bigger than current element count.\n");
-	for (size_t i = 0; i < Vec->MaxSize; i += Vec->ElementSz + 1) {
-		if (Vec->Data[i] == 0xFF) {
+	for (size_t i = 0; i < Vec->MaxSize; i++) {
+		if (Vec->Occupied[i] == 0xFF) {
 			if (!Offset) {
-				Vec->Data[i] = 0; Vec->CurrentSize--; return;
+				Vec->Occupied[i] = 0; Vec->CurrentSize--; return;
 			}
 			Offset--;
 		}
