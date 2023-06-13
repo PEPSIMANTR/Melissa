@@ -155,5 +155,19 @@ int main() {
 		memset(cl.RecvBuffer, 0, 4095); memset(cl.SendBuffer, 0, 4096);
 		ParseHeader(cl);
 	}
+	// Vector testing code
+	/*struct Vector v = VectorDefault;
+	InitializeVector(&v, sizeof(int));
+	int x = 0x7aaaaaaa;
+	for (int i = 0;i < 5;i++) {
+		AddElement(&v, &x, sizeof(int)); x++;
+	}
+	x = 0;
+	for (size_t i = 0; i < 5; i++) {
+		memcpy(&x, GetElement(&v, i), 4);
+	}
+	DeleteElement(&v, 2);
+	AddElement(&v, &x, sizeof(int));*/
+
 	return 0;
 }
