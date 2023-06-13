@@ -51,9 +51,10 @@ void Get(struct ClientInfo cl) {// Open the requested file, for now it'll handle
 		fclose(cl.File);
 	}
 	else {
-		h.StatusCode = 404; ServerHeaders(h, cl); return;
+		h.StatusCode = 404; ServerHeaders(h, cl);
 	}
-	
+	if (cl.CloseConnection) shutdown(cl.s, 2);
+	return;
 }
 
 void ParseHeader(struct ClientInfo cl) {
@@ -83,6 +84,12 @@ void ParseHeader(struct ClientInfo cl) {
 				}
 				pos1 = pos2;
 			}
+			pos2++;
+			if (!strncmp(&cl.RecvBuffer[pos2], "HTTP/", 5)) {
+				pos2 += 5;
+				if (!strncmp(&cl.RecvBuffer[pos2], "1.0", 3))
+					cl.CloseConnection = 1;
+			}
 		}
 		// We are on later lines (key: value)
 		else if(pos1-pos2>=6) {// Check if line is not shorter than header keys we're comparing for preventing an potential buffer overrun.
@@ -101,6 +108,7 @@ void ParseHeader(struct ClientInfo cl) {
 				default:
 					break;
 			}
+			return;
 		}
 		pos1++; if (&cl.RecvBuffer[pos1] < 32) pos1++;//Check if line delimiters are CRLF or LF
 		pos2 = pos1;
@@ -122,7 +130,11 @@ int main() {
 	if (listening == INVALID_SOCKET) {
 		printf("Can't create a socket! Quitting\n"); return -1;
 	}
-	
+	SOCKET DummySock = socket(AF_INET, SOCK_STREAM, 0);
+	if (DummySock == INVALID_SOCKET) {
+		printf("Can't create a socket! Quitting\n"); return -1;
+	}
+
 	struct sockaddr_in hint;
 	hint.sin_family = AF_INET;
 	hint.sin_port = htons(8000);
@@ -144,8 +156,46 @@ int main() {
 #else
 	int clientSize = sizeof(client);
 #endif
+	// Setup the structures
 	inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
-	while (1) {
+	struct Vector PollVec = VectorDefault; InitializeVector(&PollVec, sizeof(struct pollfd));
+	struct Vector SockType = VectorDefault; InitializeVector(&SockType, 1);
+	struct Vector ClientVec = VectorDefault; InitializeVector(&ClientVec, sizeof(struct ClientInfo));
+	struct pollfd EmptyPollfd = { .fd = DummySock,.events = 0 }; 
+#ifdef _WIN32
+	HANDLE VecMutex = CreateMutex(NULL, 0, NULL);
+#endif
+	char SockTypeElement = 0; struct pollfd PollfdElement = EmptyPollfd;
+	SockTypeElement = 1; PollfdElement.fd = listening; PollfdElement.events = POLLIN;
+	AddElement(&SockType, &SockTypeElement, 1); AddElement(&PollVec, &PollfdElement, sizeof(struct pollfd)); AddElement(&ClientVec, &ClientInfoDefault, sizeof(ClientInfoDefault));
+	int Connections = 0;
+	while ((Connections = WSAPoll(PollVec.Data, PollVec.MaxSize, -1)) > 0) {
+		struct pollfd* PollPointer;
+		for (size_t i = 0; i < PollVec.MaxSize; i++) {
+			PollPointer = &PollVec.Data[i * sizeof(struct pollfd)];
+			if (PollPointer->revents & POLLIN) {
+				if (SockType.Data[i] & 1) {// Listening socket
+					SOCKET client = accept(listening, NULL, NULL);
+					PollfdElement.fd = client;
+					AddElement(&PollVec, &PollfdElement, sizeof(PollfdElement));
+					SockTypeElement = 0; AddElement(&SockType, &SockTypeElement, 1);
+					struct ClientInfo cl = ClientInfoDefault; ClientInfoInit(&cl); cl.s = client;
+					AddElement(&ClientVec, &cl, sizeof(cl));
+				}
+				else {// Client socket
+					struct ClientInfo cl = ClientInfoDefault;
+					memcpy(&cl, GetElement(&ClientVec, i), sizeof(cl));
+					ParseHeader(cl);
+				}
+				Connections--;
+			}
+			else if (PollPointer->revents & POLLHUP) {// Connection terminated.
+				ClientInfoCleanup(GetElement(&ClientVec, i)); memcpy(PollPointer, &EmptyPollfd, sizeof(EmptyPollfd));
+			}
+			if (!Connections) break;
+		}
+	}
+	/*while (1) {
 		SOCKET ClientSock = accept(listening, (struct sockaddr*)&client, &clientSize);
 		if (ClientSock == SOCKET_ERROR) {
 			printf("accept() failure.\n"); return -3;
@@ -154,7 +204,7 @@ int main() {
 		cl.RecvBuffer = malloc(4096); cl.SendBuffer = malloc(4096);
 		memset(cl.RecvBuffer, 0, 4095); memset(cl.SendBuffer, 0, 4096);
 		ParseHeader(cl);
-	}
+	}*/
 	// Vector testing code
 	/*struct Vector v = VectorDefault;
 	InitializeVector(&v, sizeof(int));

@@ -9,6 +9,8 @@
 	#include <io.h>
 #endif // _WIN32
 
+extern SOCKET DummySock;
+
 typedef struct ClientInfo;
 struct ClientInfo {
 	SOCKET s;
@@ -22,6 +24,9 @@ struct ClientInfo {
 struct ClientInfo ClientInfoDefault = {
 	.CloseConnection = 0, .RequestPath = 0, .RequestType = 0, .RangeStart = 0, .RangeEnd = 0, .Host = 0, .File = 0
 };
+static inline void ClientInfoInit(struct ClientInfo* cl) {
+	cl->RecvBuffer = malloc(4096); cl->SendBuffer = malloc(4096);
+}
 static inline void ClientInfoReset(struct ClientInfo* cl) {
 	if (cl->RequestPath) free(cl->RequestPath);
 	if (cl->Host) free(cl->Host);
@@ -96,6 +101,7 @@ static inline void DeleteElement(struct Vector* Vec, int Offset) {
 		}
 	}
 }
+// Custom versions of vector functions specifically for pollfd vector
 
 
 
