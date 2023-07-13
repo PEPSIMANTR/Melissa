@@ -26,10 +26,12 @@ struct ClientInfo ClientInfoDefault = {
 };
 static inline void ClientInfoInit(struct ClientInfo* cl) {
 	cl->RecvBuffer = malloc(4096); cl->SendBuffer = malloc(4096);
+	memset(cl->RecvBuffer, 0, 4096); memset(cl->SendBuffer, 0, 4096);
 }
 static inline void ClientInfoReset(struct ClientInfo* cl) {
 	if (cl->RequestPath) free(cl->RequestPath);
 	if (cl->Host) free(cl->Host);
+	memset(cl->RecvBuffer, 0, 4096); memset(cl->SendBuffer, 0, 4096);
 }
 static inline void ClientInfoCleanup(struct ClientInfo* cl) {
 	ClientInfoReset(cl);
@@ -48,6 +50,10 @@ static inline void HeaderParametersReset(struct HeaderParameters* h) {
 	if (h->FileMime) free(h->FileMime);
 }
 
+/// <summary>
+/// Implementation of C++ Vectors in C
+/// NOT suitable for using on other code as it's specifically written for Melissa and violates some vector rules.
+/// </summary>
 typedef struct Vector;
 struct Vector {
 	unsigned char* Data; // Actual data
@@ -65,8 +71,7 @@ static inline void InitializeVector(struct Vector* Vec, int ElementSz) {
 static inline void* AddElement(struct Vector* Vec, void* Element, int ElementSz) {
 	if (ElementSz != Vec->ElementSz) abort(); //throw("AddElement(): Added element is not equal to vector element size.\n");
 	// Search for an empty space first and reuse it
-	size_t off = 0;
-	for (; off < Vec->MaxSize; off++) {
+	for (size_t off = 0; off < Vec->MaxSize; off++) {
 		if (Vec->Occupied[off] != 0xFF) {// If this offset is unused(free)
 			memcpy(&Vec->Data[off * Vec->ElementSz], Element, ElementSz);
 			Vec->CurrentSize++;  Vec->Occupied[off] = 0xFF;
@@ -80,7 +85,8 @@ static inline void* AddElement(struct Vector* Vec, void* Element, int ElementSz)
 	Vec->MaxSize++; Vec->CurrentSize++; return &Vec->Data[Vec->MaxSize-ElementSz];
 }
 static inline void* GetElement(struct Vector* Vec, int Offset) {
-	if (Offset > Vec->CurrentSize) abort(); //throw("GetElement(): Offset is bigger than current element count.\n");
+	int DbgOff = Offset;
+	if (Offset >= Vec->CurrentSize) abort(); //throw("GetElement(): Offset is bigger than current element count.\n");
 	for (size_t i = 0; i < Vec->MaxSize; i++) {
 		if (Vec->Occupied[i] == 0xFF) {
 			if (!Offset) {
@@ -89,6 +95,7 @@ static inline void* GetElement(struct Vector* Vec, int Offset) {
 			Offset--;
 		}
 	}
+	abort();
 }
 static inline void DeleteElement(struct Vector* Vec, int Offset) {
 	if (Offset > Vec->CurrentSize) abort(); //throw("GetElement(): Offset is bigger than current element count.\n");
@@ -100,6 +107,7 @@ static inline void DeleteElement(struct Vector* Vec, int Offset) {
 			Offset--;
 		}
 	}
+	abort();
 }
 // Custom versions of vector functions specifically for pollfd vector
 

@@ -63,7 +63,7 @@ void ParseHeader(struct ClientInfo cl) {
 	//shutdown(cl.s, 2); closesocket(cl.s); 
 	//free(cl.RecvBuffer); free(cl.SendBuffer);
 	if (Received <= 0) {
-		shutdown(cl.s, 2); closesocket(cl.s); free(cl.RecvBuffer); free(cl.SendBuffer);
+		shutdown(cl.s, 2); closesocket(cl.s); return;
 	}
 	unsigned short pos1 = 0, pos2 = 0;
 	while (pos1 < Received) {
@@ -168,11 +168,14 @@ int main() {
 	char SockTypeElement = 0; struct pollfd PollfdElement = EmptyPollfd;
 	SockTypeElement = 1; PollfdElement.fd = listening; PollfdElement.events = POLLIN;
 	AddElement(&SockType, &SockTypeElement, 1); AddElement(&PollVec, &PollfdElement, sizeof(struct pollfd)); AddElement(&ClientVec, &ClientInfoDefault, sizeof(ClientInfoDefault));
-	int Connections = 0;
+	int Connections = 0, EmptyElements = 0;
+	//goto xy;
 	while ((Connections = WSAPoll(PollVec.Data, PollVec.MaxSize, -1)) > 0) {
-		struct pollfd* PollPointer;
+		struct pollfd* PollPointer; EmptyElements = 0;
 		for (size_t i = 0; i < PollVec.MaxSize; i++) {
-			PollPointer = &PollVec.Data[i * sizeof(struct pollfd)];
+			if (PollVec.Occupied[i] == 0) { EmptyElements++; continue; }
+			//PollPointer = &PollVec.Data[i * sizeof(struct pollfd)];
+			PollPointer = GetElement(&PollVec, i-EmptyElements);
 			if (PollPointer->revents & POLLIN) {
 				if (SockType.Data[i] & 1) {// Listening socket
 					SOCKET client = accept(listening, NULL, NULL);
@@ -184,13 +187,17 @@ int main() {
 				}
 				else {// Client socket
 					struct ClientInfo cl = ClientInfoDefault;
-					memcpy(&cl, GetElement(&ClientVec, i), sizeof(cl));
+					memcpy(&cl, GetElement(&ClientVec, i-EmptyElements), sizeof(cl)); 
 					ParseHeader(cl);
 				}
 				Connections--;
 			}
 			else if (PollPointer->revents & POLLHUP) {// Connection terminated.
-				ClientInfoCleanup(GetElement(&ClientVec, i)); memcpy(PollPointer, &EmptyPollfd, sizeof(EmptyPollfd));
+				ClientInfoCleanup(GetElement(&ClientVec, i-EmptyElements));
+				SockType.Data[i] = 0;
+				memcpy(PollPointer, &EmptyPollfd, sizeof(EmptyPollfd)); Connections--; DeleteElement(&PollVec, i-EmptyElements);
+				DeleteElement(&ClientVec, i-EmptyElements); DeleteElement(&SockType, i-EmptyElements);
+				printf("A");
 			}
 			if (!Connections) break;
 		}
@@ -206,7 +213,8 @@ int main() {
 		ParseHeader(cl);
 	}*/
 	// Vector testing code
-	/*struct Vector v = VectorDefault;
+	xy:
+	struct Vector v = VectorDefault;
 	InitializeVector(&v, sizeof(int));
 	int x = 0x7aaaaaaa;
 	for (int i = 0;i < 5;i++) {
@@ -217,7 +225,7 @@ int main() {
 		memcpy(&x, GetElement(&v, i), 4);
 	}
 	DeleteElement(&v, 2);
-	AddElement(&v, &x, sizeof(int));*/
+	AddElement(&v, &x, sizeof(int));
 
 	return 0;
 }
