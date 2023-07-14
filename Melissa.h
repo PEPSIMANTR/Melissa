@@ -15,28 +15,37 @@ typedef struct ClientInfo;
 struct ClientInfo {
 	SOCKET s;
 	char* SendBuffer; char* RecvBuffer;
+};
+struct ClientInfo ClientInfoDefault = {
+	.RecvBuffer = NULL, .SendBuffer = NULL, .s = 0
+};
+struct ClientRequest {
+	struct ClientInfo* cl;
 	char* RequestPath; unsigned char RequestType;
 	unsigned char CloseConnection;// There's no bool in C lol
 	char* Host;
 	unsigned long long RangeStart; unsigned long long RangeEnd;
 	FILE* File;
 };
-struct ClientInfo ClientInfoDefault = {
+struct ClientRequest ClientRequestDefault = {
 	.CloseConnection = 0, .RequestPath = 0, .RequestType = 0, .RangeStart = 0, .RangeEnd = 0, .Host = 0, .File = 0
 };
 static inline void ClientInfoInit(struct ClientInfo* cl) {
 	cl->RecvBuffer = malloc(4096); cl->SendBuffer = malloc(4096);
 	memset(cl->RecvBuffer, 0, 4096); memset(cl->SendBuffer, 0, 4096);
 }
-static inline void ClientInfoReset(struct ClientInfo* cl) {
+static inline void ClientRequestReset(struct ClientRequest* cl) {
 	if (cl->RequestPath) free(cl->RequestPath);
 	if (cl->Host) free(cl->Host);
-	memset(cl->RecvBuffer, 0, 4096); memset(cl->SendBuffer, 0, 4096);
+	memset(cl->cl->RecvBuffer, 0, 4096); memset(cl->cl->SendBuffer, 0, 4096);
 }
 static inline void ClientInfoCleanup(struct ClientInfo* cl) {
-	ClientInfoReset(cl);
-	free(cl->SendBuffer); free(cl->RecvBuffer);
+	free(cl->SendBuffer); free(cl->RecvBuffer); closesocket(cl->s);
 }
+
+struct ThreadInfo {
+	int SendPipe, RecvPipe, ThreadID;//SendPipe is the pipe main thread writes to, RecvPipe is the pipe threads read from.
+};
 
 typedef struct HeaderParameters;
 struct HeaderParameters {
@@ -109,7 +118,7 @@ static inline void DeleteElement(struct Vector* Vec, int Offset) {
 	}
 	abort();
 }
-// Custom versions of vector functions specifically for pollfd vector
+
 
 
 
