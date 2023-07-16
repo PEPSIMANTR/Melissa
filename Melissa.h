@@ -15,9 +15,10 @@ typedef struct ClientInfo;
 struct ClientInfo {
 	SOCKET s;
 	char* SendBuffer; char* RecvBuffer;
+	struct pollfd* PollPtr;
 };
 struct ClientInfo ClientInfoDefault = {
-	.RecvBuffer = NULL, .SendBuffer = NULL, .s = 0
+	.RecvBuffer = NULL, .SendBuffer = NULL, .s = 0, .PollPtr = NULL
 };
 struct ClientRequest {
 	struct ClientInfo* cl;
@@ -37,7 +38,7 @@ static inline void ClientInfoInit(struct ClientInfo* cl) {
 static inline void ClientRequestReset(struct ClientRequest* cl) {
 	if (cl->RequestPath) free(cl->RequestPath);
 	if (cl->Host) free(cl->Host);
-	memset(cl->cl->RecvBuffer, 0, 4096); memset(cl->cl->SendBuffer, 0, 4096);
+	//memset(cl->cl->RecvBuffer, 0, 4096); memset(cl->cl->SendBuffer, 0, 4096);
 }
 static inline void ClientInfoCleanup(struct ClientInfo* cl) {
 	free(cl->SendBuffer); free(cl->RecvBuffer); closesocket(cl->s);
@@ -45,6 +46,15 @@ static inline void ClientInfoCleanup(struct ClientInfo* cl) {
 
 struct ThreadInfo {
 	int SendPipe, RecvPipe, ThreadID;//SendPipe is the pipe main thread writes to, RecvPipe is the pipe threads read from.
+};
+struct ThreadInfo ThreadInfoDefault = {
+	.SendPipe = 0, .RecvPipe = 0,.ThreadID = 0
+};
+struct ThreadParameters {
+	struct ThreadInfo* ti; char* OccupicationFlag;
+};
+struct ThreadParameters ThreadParametersDefault = {
+	.ti = 0, .OccupicationFlag = 0
 };
 
 typedef struct HeaderParameters;
@@ -119,7 +129,7 @@ static inline void DeleteElement(struct Vector* Vec, int Offset) {
 	abort();
 }
 
-
+void* NullPtr = NULL;
 
 
 
