@@ -1,0 +1,54 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.elf
+
+# WolfSSL user_settings.h file
+user_settings.h
+
+# Secret files
+*.pem
+*.key
+
+# Config files
+*.cfg
+
+# Visual Studio IntelliSense directory
+.vs
+
+# VS output directories
+x64
+Debug
+Release
+
+# macOS persistent storage(?) stuff
+._*

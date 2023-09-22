@@ -23,5 +23,13 @@
     <ClInclude Include="Melissa.h">
       <Filter>Üst Bilgi Dosyaları</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Üst Bilgi Dosyaları</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Melissa.rc">
+      <Filter>Kaynak Dosyaları</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>
