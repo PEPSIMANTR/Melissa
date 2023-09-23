@@ -10,6 +10,9 @@
 	
 #endif
 // Cross platform
+#ifdef _WIN32
+	#define poll WSAPoll
+#endif
 
 // Structures
 typedef struct {
@@ -37,6 +40,19 @@ typedef struct {
 } HeaderParameters ;
 HeaderParameters hpDefault = {
 	.ContentLength = 0, .StatusCode = 404, .ContentType = 0, .CliPtr = 0
+};
+
+typedef struct {
+	unsigned char ThreadID;
+	int Pipes[2];
+#define RecvPipe Pipes[0]
+#define SendPipe Pipes[1]
+	char* SendBuffer; char* RecvBuffer;
+	HANDLE Handle;
+	ClientInfo* CliPtr;
+} ThreadInfo;
+ThreadInfo tiDefault = {
+	.ThreadID = 0, .Pipes = {0}, .RecvBuffer = NULL, .SendBuffer = NULL, .Handle=0, .CliPtr=0
 };
 // Variables & constants
 
